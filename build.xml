@@ -1,0 +1,63 @@
+<?xml version="1.0"?>
+<project name="TinCan.NET" basedir=".">
+  <description>TinCan.NET tasks</description>
+
+  <!-- determines the location of msbuild exectuable on local system -->
+  <target name="init">
+    <exec executable="powershell" output="msbuildpath.tmp">
+      <arg value="(Get-ItemProperty HKLM:\software\Microsoft\MSBuild\ToolsVersions\4.0).MSBuildToolsPath"/>
+    </exec>
+    <loadfile property="msbuild.path" srcfile="msbuildpath.tmp"/>
+    <property name="msbuild.location" value="${msbuild.path}"/>
+    <echo>${msbuild.location}</echo>
+    <delete file="msbuildpath.tmp"/>
+  </target>
+  
+  <!-- cleans previous build artifacts, if present -->
+  <target name="clean">
+    <delete dir="TinCan/bin" failonerror="false"/>
+    <delete dir="TinCanTests/bin" failonerror="false"/>
+    <delete>
+      <fileset dir="TinCan" includes="*.nupkg"/>
+    </delete>
+  </target>
+
+  <!-- builds all release builds that will be included in the nuget package -->
+  <target name="build.releases" depends="init,clean">
+    <antcall target="-build.release">
+      <param name="release" value="Release-net35"/>
+    </antcall>
+    <antcall target="-build.release">
+      <param name="release" value="Release-net40"/>
+    </antcall>
+    <antcall target="-build.release">
+      <param name="release" value="Release-net45"/>
+    </antcall>
+    <antcall target="-build.release">
+      <param name="release" value="Release-net45-signed"/>
+    </antcall>
+    <echo>All releases built</echo>
+  </target>
+  
+  <!-- packages up the releases into nupkg file -->
+  <target name="package" depends="build.releases">
+    <exec dir="TinCan" executable="${basedir}/.nuget/NuGet.exe">
+      <arg value="pack"/>
+      <arg value="TinCan.csproj"/>
+      <arg value="-sym"/>
+      <arg value="-Prop"/>
+      <arg value="Configuration=Release-net35"/>
+    </exec>
+  </target>
+  
+  <!-- "private" target that builds a single release -->
+  <target name="-build.release">
+    <echo>Building release: ${release}</echo>
+    <echo>${msbuild.location}/MSBuild.exe</echo>
+    <exec dir="${msbuild.location}" executable="MSBuild.exe">
+      <arg value="${basedir}/TinCan.sln" />
+      <arg value="/p:Configuration=${release}" />
+    </exec>
+    <echo>${release} built</echo>
+  </target>
+</project>
